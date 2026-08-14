@@ -1,0 +1,16 @@
+###
+GET http://localhost:3002/vehicles
+
+###
+POST http://localhost:3002/vehicles
+Content-Type: application/json
+
+{
+    "license_plate": "GP111222",
+    "make_model": "Nissan Navara",
+    "current_mileage": 45000,
+    "status": "Available"
+}
+
+
+
