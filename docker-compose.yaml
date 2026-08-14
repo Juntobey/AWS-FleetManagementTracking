@@ -9,19 +9,19 @@ services:
         condition: service_healthy
     environment:
       - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=HewCharaSaw@&2410
-      - DB_NAME=fleet_management
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
 
   db:
     image: postgres:16
     container_name: fleet_management_db
     restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=HewCharaSaw@&2410
-      - POSTGRES_DB=fleet_management
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
     volumes:
       - ./src/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
