@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Fleet Management Tracking
 
 A web application for managing and tracking a fleet of vehicles. Built with Node.js, Express, PostgreSQL, and Docker.
@@ -85,3 +86,6 @@ src/
 ├── routes/         # Web and API routes
 └── views/          # EJS templates
 ```
+=======
+# AWS-KYC-Document-Management-System
+>>>>>>> 295c8116cd2da03214605cf26b5a14539ab657ad
