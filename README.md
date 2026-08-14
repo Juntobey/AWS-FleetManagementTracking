@@ -87,5 +87,4 @@ src/
 └── views/          # EJS templates
 ```
 =======
-# AWS-KYC-Document-Management-System
->>>>>>> 295c8116cd2da03214605cf26b5a14539ab657ad
+
