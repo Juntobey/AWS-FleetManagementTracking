@@ -2,8 +2,8 @@ version: "3.8"
 services:
   app:
     build: .
-    ports:
-      - "3002:3002"
+    expose:
+     - "3002"
     depends_on:
       db:
         condition: service_healthy
@@ -29,3 +29,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+
