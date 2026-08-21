@@ -1,6 +1,10 @@
 .env
 node_modules
-.terraform
+
+# Terraform
+terraform/
+.terraform/
 *.tfstate
 *.tfstate.backup
-# .terraform.lock.hcl  # keep this tracked for CI reproducibility
+*.tfvars
+.terraform.lock.hcl
