@@ -1,43 +1,24 @@
-# DATA SOURCE: Fetch available AZs automatically
-data "aws_availability_zones" "available" {
-  state = "available"
+provider "aws"{
+    region = "af-south-1"
 }
 
-#  VPC 
-resource "aws_vpc" "tobeynd_vpc" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
+# creating VPC 
+
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+
+  name = "vpc-tobeynd"
+  cidr = "10.0.0.0/16"
+
+  azs             = ["af-south-1a", "af-south-1b"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
+
+  enable_nat_gateway = true
+  enable_vpn_gateway = true
 
   tags = {
-    Name = "tobeynd_vpc"
+    Terraform = "true"
+    Environment = "dev"
   }
 }
-
-
-#  PUBLIC SUBNETS 
-resource "aws_subnet" "tobeynd_public_subnet_1" {
-  vpc_id                  = aws_vpc.tobeynd_vpc.id
-  cidr_block              = "10.0.101.0/24"
-  map_public_ip_on_launch = true
-  availability_zone       = data.aws_availability_zones.available.names[0]
-
-  tags = {
-    Name = "tobeynd_public_subnet_1"
-  }
-}
-
-
-#  PUBLIC SUBNETS 
-resource "aws_subnet" "tobeynd_public_subnet_2" {
-  vpc_id                  = aws_vpc.tobeynd_vpc.id
-  cidr_block              = "10.0.102.0/24"
-  map_public_ip_on_launch = true
-  availability_zone       = data.aws_availability_zones.available.names[0]
-
-  tags = {
-    Name = "tobeynd_public_subnet_2"
-  }
-}
-
-

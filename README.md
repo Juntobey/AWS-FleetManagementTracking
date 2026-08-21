@@ -86,5 +86,4 @@ src/
 ├── routes/         # Web and API routes
 └── views/          # EJS templates
 ```
-=======
 
