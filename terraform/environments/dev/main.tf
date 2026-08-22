@@ -3,6 +3,17 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# DATA SOURCE: Find latest Amazon Linux 2023 AMI
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
+
 # --- VPC ---
 resource "aws_vpc" "tobeynd_vpc" {
   cidr_block           = "10.0.0.0/16"
