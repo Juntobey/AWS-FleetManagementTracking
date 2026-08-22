@@ -1,8 +1,9 @@
+# DATA SOURCE: Fetch available AZs automatically
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# VPC 
+# --- VPC ---
 resource "aws_vpc" "tobeynd_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -75,7 +76,7 @@ resource "aws_eip" "tobeynd_nat_eip" {
   }
 }
 
-#----NAT Gateway ( in public subnet, used by the private subnets)-----
+# --- NAT GATEWAY (in public subnet, used by private subnets) ---
 resource "aws_nat_gateway" "tobeynd_nat_gw" {
   allocation_id = aws_eip.tobeynd_nat_eip.id
   subnet_id     = aws_subnet.tobeynd_public_subnet_1.id
@@ -87,10 +88,7 @@ resource "aws_nat_gateway" "tobeynd_nat_gw" {
   depends_on = [aws_internet_gateway.tobeynd_igw]
 }
 
-#--- ROUTE TABLES ---
-
 # --- PUBLIC ROUTE TABLE ---
-
 resource "aws_route_table" "tobeynd_public_rt" {
   vpc_id = aws_vpc.tobeynd_vpc.id
 
@@ -104,14 +102,13 @@ resource "aws_route_table" "tobeynd_public_rt" {
   }
 }
 
-
-#--- PRIVATE ROUTE TABLE ---
+# --- PRIVATE ROUTE TABLE ---
 resource "aws_route_table" "tobeynd_private_rt" {
   vpc_id = aws_vpc.tobeynd_vpc.id
 
   route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_nat_gateway.tobeynd_nat_gw.id
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.tobeynd_nat_gw.id
   }
 
   tags = {
