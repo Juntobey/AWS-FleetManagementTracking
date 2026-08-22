@@ -238,6 +238,47 @@ resource "aws_security_group" "tobeynd_rds_sg" {
   }
 }
 
+# --- RDS SUBNET GROUP ---
+# --- RDS SUBNET GROUP ---
+resource "aws_db_subnet_group" "tobeynd_db_subnet_group" {
+  name       = "tobeynd-db-subnet-group"
+  subnet_ids = [
+    aws_subnet.tobeynd_private_subnet_1.id,
+    aws_subnet.tobeynd_private_subnet_2.id
+  ]
+
+  tags = {
+    Name = "tobeynd_db_subnet_group"
+  }
+}
+
+# --- RDS POSTGRESQL INSTANCE ---
+resource "aws_db_instance" "tobeynd_rds" {
+  identifier     = "tobeynd-fleet-db"
+  engine         = "postgres"
+  engine_version = "16"
+  instance_class = "db.t3.micro"
+
+  allocated_storage     = 20
+  max_allocated_storage = 50
+  storage_type          = "gp3"
+
+  db_name  = var.db_name
+  username = var.db_username
+  password = var.db_password
+
+  vpc_security_group_ids = [aws_security_group.tobeynd_rds_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.tobeynd_db_subnet_group.name
+
+  multi_az            = false
+  publicly_accessible = false
+  skip_final_snapshot = true
+
+  tags = {
+    Name = "tobeynd_fleet_db"
+  }
+}
+
 
 
 
