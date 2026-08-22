@@ -13,7 +13,6 @@ router.get('/', async (req, res) => {
         const avgMileage = total > 0
             ? Math.round(vehicles.reduce((sum, v) => sum + Number(v.current_mileage), 0) / total)
             : 0
-        console.log('Rendering dashboard with:', { total, available, maintenance, avgMileage, vehicleCount: vehicles.length })
         res.render('dashboard', { vehicles, total, available, maintenance, avgMileage })
     } catch (err) {
         console.error('Dashboard error:', err.message)
