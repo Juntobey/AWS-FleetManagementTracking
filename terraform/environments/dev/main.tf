@@ -1,6 +1,20 @@
+# " what AZs do you have?"
 data "aws_availability_zones" "available" {
   state = "available"
 }
+
+# " AWS, what's the latest Amazon Linux 2023 AMI?"
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
+
+
 
 # VPC 
 resource "aws_vpc" "tobeynd_vpc" {
@@ -285,7 +299,7 @@ resource "aws_lb" "tobeynd_alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.tobeynd_alb_sg.id]
-  subnets            = [
+  subnets = [
     aws_subnet.tobeynd_public_subnet_1.id,
     aws_subnet.tobeynd_public_subnet_2.id
   ]
@@ -295,3 +309,44 @@ resource "aws_lb" "tobeynd_alb" {
   }
 }
 
+# --- LAUNCH TEMPLATE ---
+resource "aws_launch_template" "tobeynd_lt" {
+  name          = "tobeynd-launch-template"
+  image_id      = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro"
+
+  network_interfaces {
+    associate_public_ip_address = false
+    security_groups             = [aws_security_group.tobeynd_ec2_sg.id]
+  }
+
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    sudo yum update -y
+    sudo yum install -y docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo docker pull your-dockerhub-username/fleet-management:latest
+    sudo docker run -d \
+      -p 3002:3002 \
+      -e DB_HOST=${aws_db_instance.tobeynd_rds.endpoint} \
+      -e DB_PORT=5432 \
+      -e DB_USER=${var.db_username} \
+      -e DB_PASSWORD=${var.db_password} \
+      -e DB_NAME=${var.db_name} \
+      your-dockerhub-username/fleet-management:latest
+  EOF
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "tobeynd_fleet_app"
+    }
+  }
+
+  tags = {
+    Name = "tobeynd_launch_template"
+  }
+}
