@@ -1,9 +1,9 @@
-# " what AZs do you have?"
+# DATA SOURCE: Fetch available AZs automatically
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# " AWS, what's the latest Amazon Linux 2023 AMI?"
+# DATA SOURCE: Find latest Amazon Linux 2023 AMI
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
@@ -13,7 +13,6 @@ data "aws_ami" "amazon_linux" {
     values = ["al2023-ami-*-x86_64"]
   }
 }
-
 
 
 # VPC 
@@ -350,3 +349,65 @@ resource "aws_launch_template" "tobeynd_lt" {
     Name = "tobeynd_launch_template"
   }
 }
+
+# --- TARGET GROUP ---
+resource "aws_lb_target_group" "tobeynd_tg" {
+  name     = "tobeynd-tg"
+  port     = 3002
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.tobeynd_vpc.id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    port                = "3002"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+  }
+
+  tags = {
+    Name = "tobeynd_tg"
+  }
+}
+
+# --- ALB LISTENER ---
+resource "aws_lb_listener" "tobeynd_http_listener" {
+  load_balancer_arn = aws_lb.tobeynd_alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tobeynd_tg.arn
+  }
+}
+
+# --- AUTO SCALING GROUP ---
+resource "aws_autoscaling_group" "tobeynd_asg" {
+  name             = "tobeynd-asg"
+  desired_capacity = 2
+  min_size         = 1
+  max_size         = 4
+  vpc_zone_identifier = [
+    aws_subnet.tobeynd_private_subnet_1.id,
+    aws_subnet.tobeynd_private_subnet_2.id
+  ]
+  target_group_arns = [aws_lb_target_group.tobeynd_tg.arn]
+
+  launch_template {
+    id      = aws_launch_template.tobeynd_lt.id
+    version = "$Latest"
+  }
+
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+
+  tag {
+    key                 = "Name"
+    value               = "tobeynd_fleet_app"
+    propagate_at_launch = true
+  }
+}
+
