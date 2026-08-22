@@ -241,7 +241,7 @@ resource "aws_security_group" "tobeynd_rds_sg" {
 # --- RDS SUBNET GROUP ---
 # --- RDS SUBNET GROUP ---
 resource "aws_db_subnet_group" "tobeynd_db_subnet_group" {
-  name       = "tobeynd-db-subnet-group"
+  name = "tobeynd-db-subnet-group"
   subnet_ids = [
     aws_subnet.tobeynd_private_subnet_1.id,
     aws_subnet.tobeynd_private_subnet_2.id
@@ -279,9 +279,19 @@ resource "aws_db_instance" "tobeynd_rds" {
   }
 }
 
+# --- APPLICATION LOAD BALANCER ---
+resource "aws_lb" "tobeynd_alb" {
+  name               = "tobeynd-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.tobeynd_alb_sg.id]
+  subnets            = [
+    aws_subnet.tobeynd_public_subnet_1.id,
+    aws_subnet.tobeynd_public_subnet_2.id
+  ]
 
-
-
-
-
+  tags = {
+    Name = "tobeynd_alb"
+  }
+}
 
