@@ -136,3 +136,159 @@ resource "aws_route_table_association" "private_subnet_2" {
   subnet_id      = aws_subnet.tobeynd_private_subnet_2.id
   route_table_id = aws_route_table.tobeynd_private_rt.id
 }
+
+# --- SECURITY GROUPS---
+
+# --- ALB ---
+resource "aws_security_group" "tobeynd_alb_sg" {
+  name        = "tobeynd_alb_sg"
+  description = "Allow HTTP and HTTPS from the internet"
+  vpc_id      = aws_vpc.tobeynd_vpc.id
+
+  ingress {
+
+    description = "HTTP from internet"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS from internet"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+
+  }
+
+  tags = {
+    Name = "tobeynd_alb_sg"
+  }
+}
+
+# ---EC2 instance sg ---
+resource "aws_security_group" "tobeynd_ec2_sg" {
+
+  name        = "tobeynd_ec2_sg"
+  description = "Allow traffic from ALB only"
+  vpc_id      = aws_vpc.tobeynd_vpc.id
+
+
+  ingress {
+    description     = "App port from ALB only"
+    from_port       = 3002
+    to_port         = 3002
+    protocol        = "tcp"
+    security_groups = [aws_security_group.tobeynd_alb_sg.id]
+
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+
+    Name = "tobeynd_ec2_sg"
+  }
+
+}
+
+#--- RDS ----
+resource "aws_security_group" "tobeynd_rds_sg" {
+  name        = "tobeynd_rds_sg"
+  description = "Allow PostgreSQL from EC2 instances only"
+  vpc_id      = aws_vpc.tobeynd_vpc.id
+
+  ingress {
+    description     = " PostgreSQL from EC2 instances only"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.tobeynd_ec2_sg.id]
+  }
+
+  egress {
+    description = "Allow all outbound "
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "tobeynd_rds_sg"
+  }
+}
+
+# --- RDS SUBNET GROUP ---
+# --- RDS SUBNET GROUP ---
+resource "aws_db_subnet_group" "tobeynd_db_subnet_group" {
+  name = "tobeynd-db-subnet-group"
+  subnet_ids = [
+    aws_subnet.tobeynd_private_subnet_1.id,
+    aws_subnet.tobeynd_private_subnet_2.id
+  ]
+
+  tags = {
+    Name = "tobeynd_db_subnet_group"
+  }
+}
+
+# --- RDS POSTGRESQL INSTANCE ---
+resource "aws_db_instance" "tobeynd_rds" {
+  identifier     = "tobeynd-fleet-db"
+  engine         = "postgres"
+  engine_version = "16"
+  instance_class = "db.t3.micro"
+
+  allocated_storage     = 20
+  max_allocated_storage = 50
+  storage_type          = "gp3"
+
+  db_name  = var.db_name
+  username = var.db_username
+  password = var.db_password
+
+  vpc_security_group_ids = [aws_security_group.tobeynd_rds_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.tobeynd_db_subnet_group.name
+
+  multi_az            = false
+  publicly_accessible = false
+  skip_final_snapshot = true
+
+  tags = {
+    Name = "tobeynd_fleet_db"
+  }
+}
+
+# --- APPLICATION LOAD BALANCER ---
+resource "aws_lb" "tobeynd_alb" {
+  name               = "tobeynd-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.tobeynd_alb_sg.id]
+  subnets            = [
+    aws_subnet.tobeynd_public_subnet_1.id,
+    aws_subnet.tobeynd_public_subnet_2.id
+  ]
+
+  tags = {
+    Name = "tobeynd_alb"
+  }
+}
+
