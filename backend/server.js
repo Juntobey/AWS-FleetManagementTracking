@@ -1,16 +1,15 @@
-require('dotenv').config()
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') })
 
 const express = require('express')
 const path = require('path')
 const cors = require('cors')
-const cookieParser = require('cookie-parser');
+const cookieParser = require('cookie-parser')
 const vehicleRoutes = require('./routes/vehicleRoutes')
 const webRoutes = require('./routes/webRoutes')
 const notFound = require('./middlewares/notFound')
 const errorHandler = require('./middlewares/errorHandler')
 
 const app = express()
-
 const port = process.env.PORT || 3002
 
 app.use(express.json())
@@ -19,7 +18,7 @@ app.use(cors())
 app.use(cookieParser())
 
 app.set('view engine', 'ejs')
-app.set('views', path.join(__dirname, 'views'))
+app.set('views', path.join(__dirname, '../frontend/views'))
 app.use(express.static(path.join(__dirname, '../public')))
 
 // Web UI routes
