@@ -14,7 +14,6 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-
 # VPC 
 resource "aws_vpc" "tobeynd_vpc" {
   cidr_block           = "10.0.0.0/16"
@@ -149,7 +148,7 @@ resource "aws_route_table_association" "private_subnet_2" {
   route_table_id = aws_route_table.tobeynd_private_rt.id
 }
 
-# --- SECURITY GROUPS---
+# --- SECURITY GROUPS ---
 
 # --- ALB ---
 resource "aws_security_group" "tobeynd_alb_sg" {
@@ -158,7 +157,6 @@ resource "aws_security_group" "tobeynd_alb_sg" {
   vpc_id      = aws_vpc.tobeynd_vpc.id
 
   ingress {
-
     description = "HTTP from internet"
     from_port   = 80
     to_port     = 80
@@ -180,7 +178,6 @@ resource "aws_security_group" "tobeynd_alb_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-
   }
 
   tags = {
@@ -188,13 +185,11 @@ resource "aws_security_group" "tobeynd_alb_sg" {
   }
 }
 
-# ---EC2 instance sg ---
+# --- EC2 instance sg ---
 resource "aws_security_group" "tobeynd_ec2_sg" {
-
   name        = "tobeynd_ec2_sg"
   description = "Allow traffic from ALB only"
   vpc_id      = aws_vpc.tobeynd_vpc.id
-
 
   ingress {
     description     = "App port from ALB only"
@@ -202,7 +197,6 @@ resource "aws_security_group" "tobeynd_ec2_sg" {
     to_port         = 3002
     protocol        = "tcp"
     security_groups = [aws_security_group.tobeynd_alb_sg.id]
-
   }
 
   egress {
@@ -214,20 +208,18 @@ resource "aws_security_group" "tobeynd_ec2_sg" {
   }
 
   tags = {
-
     Name = "tobeynd_ec2_sg"
   }
-
 }
 
-#--- RDS ----
+# --- RDS ---
 resource "aws_security_group" "tobeynd_rds_sg" {
   name        = "tobeynd_rds_sg"
   description = "Allow PostgreSQL from EC2 instances only"
   vpc_id      = aws_vpc.tobeynd_vpc.id
 
   ingress {
-    description     = " PostgreSQL from EC2 instances only"
+    description     = "PostgreSQL from EC2 instances only"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
@@ -235,7 +227,7 @@ resource "aws_security_group" "tobeynd_rds_sg" {
   }
 
   egress {
-    description = "Allow all outbound "
+    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -247,7 +239,6 @@ resource "aws_security_group" "tobeynd_rds_sg" {
   }
 }
 
-# --- RDS SUBNET GROUP ---
 # --- RDS SUBNET GROUP ---
 resource "aws_db_subnet_group" "tobeynd_db_subnet_group" {
   name = "tobeynd-db-subnet-group"
@@ -304,11 +295,47 @@ resource "aws_lb" "tobeynd_alb" {
   }
 }
 
+# --- IAM ROLE FOR EC2 (SSM Access) ---
+resource "aws_iam_role" "tobeynd_ec2_role" {
+  name = "tobeynd-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "tobeynd_ec2_role"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "tobeynd_ssm_policy" {
+  role       = aws_iam_role.tobeynd_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "tobeynd_ec2_profile" {
+  name = "tobeynd-ec2-profile"
+  role = aws_iam_role.tobeynd_ec2_role.name
+}
+
 # --- LAUNCH TEMPLATE ---
 resource "aws_launch_template" "tobeynd_lt" {
   name          = "tobeynd-launch-template"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = "t3.micro"
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.tobeynd_ec2_profile.arn
+  }
 
   network_interfaces {
     associate_public_ip_address = false
@@ -321,15 +348,15 @@ resource "aws_launch_template" "tobeynd_lt" {
     sudo yum install -y docker
     sudo systemctl start docker
     sudo systemctl enable docker
-    sudo docker pull your-dockerhub-username/fleet-management:latest
-    sudo docker run -d \
+    sudo docker pull tobeynd/fleet-management:latest
+    sudo docker run -d --name fleet-app \
       -p 3002:3002 \
       -e DB_HOST=${aws_db_instance.tobeynd_rds.endpoint} \
       -e DB_PORT=5432 \
       -e DB_USER=${var.db_username} \
       -e DB_PASSWORD=${var.db_password} \
       -e DB_NAME=${var.db_name} \
-      your-dockerhub-username/fleet-management:latest
+      tobeynd/fleet-management:latest
   EOF
   )
 
@@ -406,4 +433,3 @@ resource "aws_autoscaling_group" "tobeynd_asg" {
     propagate_at_launch = true
   }
 }
-
