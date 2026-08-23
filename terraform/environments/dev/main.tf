@@ -439,10 +439,10 @@ resource "aws_autoscaling_group" "tobeynd_asg" {
     aws_subnet.tobeynd_private_subnet_1.id,
     aws_subnet.tobeynd_private_subnet_2.id
   ]
- target_group_arns = [
-  aws_lb_target_group.tobeynd_tg_blue.arn,
-  aws_lb_target_group.tobeynd_tg_green.arn
-]
+  target_group_arns = [
+    aws_lb_target_group.tobeynd_tg_blue.arn,
+    aws_lb_target_group.tobeynd_tg_green.arn
+  ]
 
 
   launch_template {
