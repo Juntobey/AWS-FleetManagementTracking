@@ -1,4 +1,4 @@
-name: Fleet Management CI
+name: Fleet Management CI/CD
 
 on:
   push:
@@ -7,21 +7,23 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  publish_images:
     runs-on: ubuntu-latest
-    steps:
+    steps: 
       - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
+          username: ${{secrets.DOCKERHUB_USERNAME}}
+          password: ${{secrets.DOCKERHUB_TOKEN}}
 
       - name: Build Docker image
-        run: docker build -t fleet-management .
+        run: docker build -t tobeynd/fleet-management:latest .
+        
+      - name: Push to Docker Hub
+        run: docker push tobeynd/fleet-management:latest
+
 
   terraform:
     runs-on: ubuntu-latest
