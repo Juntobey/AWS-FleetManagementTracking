@@ -351,7 +351,7 @@ resource "aws_launch_template" "tobeynd_lt" {
     sudo docker pull tobeynd/fleet-management:latest
     sudo docker run -d --name fleet-app \
       -p 3002:3002 \
-      -e DB_HOST=${aws_db_instance.tobeynd_rds.endpoint} \
+      -e DB_HOST=${aws_db_instance.tobeynd_rds.address} \
       -e DB_PORT=5432 \
       -e DB_USER=${var.db_username} \
       -e DB_PASSWORD=${var.db_password} \
@@ -443,7 +443,6 @@ resource "aws_autoscaling_group" "tobeynd_asg" {
     aws_lb_target_group.tobeynd_tg_blue.arn,
     aws_lb_target_group.tobeynd_tg_green.arn
   ]
-
 
   launch_template {
     id      = aws_launch_template.tobeynd_lt.id
