@@ -304,11 +304,47 @@ resource "aws_lb" "tobeynd_alb" {
   }
 }
 
+# --- IAM ROLE FOR EC2 (SSM Access) ---
+resource "aws_iam_role" "tobeynd_ec2_role" {
+  name = "tobeynd-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "tobeynd_ec2_role"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "tobeynd_ssm_policy" {
+  role       = aws_iam_role.tobeynd_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "tobeynd_ec2_profile" {
+  name = "tobeynd-ec2-profile"
+  role = aws_iam_role.tobeynd_ec2_role.name
+}
+
 # --- LAUNCH TEMPLATE ---
 resource "aws_launch_template" "tobeynd_lt" {
   name          = "tobeynd-launch-template"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = "t3.micro"
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.tobeynd_ec2_profile.arn
+  }
 
   network_interfaces {
     associate_public_ip_address = false
@@ -321,15 +357,15 @@ resource "aws_launch_template" "tobeynd_lt" {
     sudo yum install -y docker
     sudo systemctl start docker
     sudo systemctl enable docker
-    sudo docker pull your-dockerhub-username/fleet-management:latest
-    sudo docker run -d \
+    sudo docker pull tobeynd/fleet-management:latest
+    sudo docker run -d --name fleet-app \
       -p 3002:3002 \
       -e DB_HOST=${aws_db_instance.tobeynd_rds.endpoint} \
       -e DB_PORT=5432 \
       -e DB_USER=${var.db_username} \
       -e DB_PASSWORD=${var.db_password} \
       -e DB_NAME=${var.db_name} \
-      your-dockerhub-username/fleet-management:latest
+      tobeynd/fleet-management:latest
   EOF
   )
 
