@@ -14,7 +14,6 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-
 # VPC 
 resource "aws_vpc" "tobeynd_vpc" {
   cidr_block           = "10.0.0.0/16"
@@ -149,7 +148,7 @@ resource "aws_route_table_association" "private_subnet_2" {
   route_table_id = aws_route_table.tobeynd_private_rt.id
 }
 
-# --- SECURITY GROUPS---
+# --- SECURITY GROUPS ---
 
 # --- ALB ---
 resource "aws_security_group" "tobeynd_alb_sg" {
@@ -158,7 +157,6 @@ resource "aws_security_group" "tobeynd_alb_sg" {
   vpc_id      = aws_vpc.tobeynd_vpc.id
 
   ingress {
-
     description = "HTTP from internet"
     from_port   = 80
     to_port     = 80
@@ -180,7 +178,6 @@ resource "aws_security_group" "tobeynd_alb_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-
   }
 
   tags = {
@@ -188,13 +185,11 @@ resource "aws_security_group" "tobeynd_alb_sg" {
   }
 }
 
-# ---EC2 instance sg ---
+# --- EC2 instance sg ---
 resource "aws_security_group" "tobeynd_ec2_sg" {
-
   name        = "tobeynd_ec2_sg"
   description = "Allow traffic from ALB only"
   vpc_id      = aws_vpc.tobeynd_vpc.id
-
 
   ingress {
     description     = "App port from ALB only"
@@ -202,7 +197,6 @@ resource "aws_security_group" "tobeynd_ec2_sg" {
     to_port         = 3002
     protocol        = "tcp"
     security_groups = [aws_security_group.tobeynd_alb_sg.id]
-
   }
 
   egress {
@@ -214,20 +208,18 @@ resource "aws_security_group" "tobeynd_ec2_sg" {
   }
 
   tags = {
-
     Name = "tobeynd_ec2_sg"
   }
-
 }
 
-#--- RDS ----
+# --- RDS ---
 resource "aws_security_group" "tobeynd_rds_sg" {
   name        = "tobeynd_rds_sg"
   description = "Allow PostgreSQL from EC2 instances only"
   vpc_id      = aws_vpc.tobeynd_vpc.id
 
   ingress {
-    description     = " PostgreSQL from EC2 instances only"
+    description     = "PostgreSQL from EC2 instances only"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
@@ -235,7 +227,7 @@ resource "aws_security_group" "tobeynd_rds_sg" {
   }
 
   egress {
-    description = "Allow all outbound "
+    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -247,7 +239,6 @@ resource "aws_security_group" "tobeynd_rds_sg" {
   }
 }
 
-# --- RDS SUBNET GROUP ---
 # --- RDS SUBNET GROUP ---
 resource "aws_db_subnet_group" "tobeynd_db_subnet_group" {
   name = "tobeynd-db-subnet-group"
@@ -442,4 +433,3 @@ resource "aws_autoscaling_group" "tobeynd_asg" {
     propagate_at_launch = true
   }
 }
-
