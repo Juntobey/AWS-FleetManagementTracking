@@ -15,3 +15,9 @@ variable "db_name" {
   type        = string
   default     = "fleet_management"
 }
+
+variable "active_target_group" {
+  description = "Which target group is active (blue or green)"
+  type        = string
+  default     = "blue"
+}

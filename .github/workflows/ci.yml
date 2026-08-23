@@ -49,6 +49,39 @@ jobs:
               --parameters 'commands=["sudo docker pull tobeynd/fleet-management:latest","sudo docker stop fleet-app || true","sudo docker rm fleet-app || true","sudo docker run -d --name fleet-app -p 3002:3002 -e DB_HOST=${{ secrets.DB_HOST }} -e DB_PORT=5432 -e DB_USER=${{ secrets.DB_USERNAME }} -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} -e DB_NAME=${{ secrets.DB_NAME }} tobeynd/fleet-management:latest"]' \
               --comment "Deploy latest fleet-management image"
           done
+          
+      - name: Blue/Green Switch
+        run: |
+          LISTENER_ARN=$(aws elbv2 describe-listeners \
+            --load-balancer-arn $(aws elbv2 describe-load-balancers --names tobeynd-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text --region af-south-1) \
+            --query 'Listeners[0].ListenerArn' \
+            --region af-south-1 \
+            --output text)
+
+          CURRENT_TG=$(aws elbv2 describe-listeners \
+            --load-balancer-arn $(aws elbv2 describe-load-balancers --names tobeynd-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text --region af-south-1) \
+            --query 'Listeners[0].DefaultActions[0].TargetGroupArn' \
+            --region af-south-1 \
+            --output text)
+
+          BLUE_TG_ARN=$(aws elbv2 describe-target-groups --names tobeynd-tg-blue --query 'TargetGroups[0].TargetGroupArn' --output text --region af-south-1)
+          GREEN_TG_ARN=$(aws elbv2 describe-target-groups --names tobeynd-tg-green --query 'TargetGroups[0].TargetGroupArn' --output text --region af-south-1)
+
+          if [ "$CURRENT_TG" == "$BLUE_TG_ARN" ]; then
+            NEW_TG=$GREEN_TG_ARN
+            echo "Switching from Blue to Green"
+          else
+            NEW_TG=$BLUE_TG_ARN
+            echo "Switching from Green to Blue"
+          fi
+
+          aws elbv2 modify-listener \
+            --listener-arn $LISTENER_ARN \
+            --default-actions Type=forward,TargetGroupArn=$NEW_TG \
+            --region af-south-1
+
+          echo "Traffic switched successfully!"
+
 
   terraform:
     runs-on: ubuntu-latest

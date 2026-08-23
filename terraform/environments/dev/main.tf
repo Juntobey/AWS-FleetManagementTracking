@@ -373,9 +373,9 @@ resource "aws_launch_template" "tobeynd_lt" {
   }
 }
 
-# --- TARGET GROUP ---
-resource "aws_lb_target_group" "tobeynd_tg" {
-  name     = "tobeynd-tg"
+# --- BLUE TARGET GROUP ---
+resource "aws_lb_target_group" "tobeynd_tg_blue" {
+  name     = "tobeynd-tg-blue"
   port     = 3002
   protocol = "HTTP"
   vpc_id   = aws_vpc.tobeynd_vpc.id
@@ -391,11 +391,33 @@ resource "aws_lb_target_group" "tobeynd_tg" {
   }
 
   tags = {
-    Name = "tobeynd_tg"
+    Name = "tobeynd_tg_blue"
   }
 }
 
-# --- ALB LISTENER ---
+# --- GREEN TARGET GROUP ---
+resource "aws_lb_target_group" "tobeynd_tg_green" {
+  name     = "tobeynd-tg-green"
+  port     = 3002
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.tobeynd_vpc.id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    port                = "3002"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+  }
+
+  tags = {
+    Name = "tobeynd_tg_green"
+  }
+}
+
+# --- ALB LISTENER (switches between blue and green) ---
 resource "aws_lb_listener" "tobeynd_http_listener" {
   load_balancer_arn = aws_lb.tobeynd_alb.arn
   port              = 80
@@ -403,7 +425,7 @@ resource "aws_lb_listener" "tobeynd_http_listener" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.tobeynd_tg.arn
+    target_group_arn = var.active_target_group == "blue" ? aws_lb_target_group.tobeynd_tg_blue.arn : aws_lb_target_group.tobeynd_tg_green.arn
   }
 }
 
@@ -417,7 +439,11 @@ resource "aws_autoscaling_group" "tobeynd_asg" {
     aws_subnet.tobeynd_private_subnet_1.id,
     aws_subnet.tobeynd_private_subnet_2.id
   ]
-  target_group_arns = [aws_lb_target_group.tobeynd_tg.arn]
+ target_group_arns = [
+  aws_lb_target_group.tobeynd_tg_blue.arn,
+  aws_lb_target_group.tobeynd_tg_green.arn
+]
+
 
   launch_template {
     id      = aws_launch_template.tobeynd_lt.id
