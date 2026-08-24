@@ -1,4 +1,7 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+
 const pool = new Pool({
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 5432,
@@ -16,10 +19,17 @@ pool.on('error', (err) => {
     console.error('Database connection error:', err)
 })
 
-pool.query('SELECT 1').then(() => {
-    console.log('Database reachable')
-}).catch(err => {
-    console.error('Database test query failed:', err.message)
-})
+// Auto-create tables on startup
+const initDb = async () => {
+    try {
+        const schema = fs.readFileSync(path.join(__dirname, '../database/schema.sql'), 'utf8');
+        await pool.query(schema);
+        console.log('Database tables initialized successfully');
+    } catch (err) {
+        console.error('Database initialization failed:', err.message);
+    }
+}
+
+initDb();
 
 module.exports = pool
