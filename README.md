@@ -1,6 +1,6 @@
 # Fleet Management Tracking
 
-A web application for managing and tracking a fleet of vehicles. Built with Node.js, Express, PostgreSQL, and Docker — deployed on AWS using Terraform.
+A web application for managing and tracking a fleet of vehicles. Built with Node.js, Express, PostgreSQL, and Docker, deployed on AWS using Terraform.
 
 ## Features
 
