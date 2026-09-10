@@ -10,7 +10,12 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"]
+    values = ["al2023-ami-2023*-kernel-*-x86_64"]
+  }
+
+  filter {
+    name   = "description"
+    values = ["Amazon Linux 2023 AMI*"]
   }
 }
 
@@ -273,6 +278,7 @@ resource "aws_db_instance" "tobeynd_rds" {
   multi_az            = false
   publicly_accessible = false
   skip_final_snapshot = true
+  storage_encrypted   = true
 
   tags = {
     Name = "tobeynd_fleet_db"
@@ -322,6 +328,11 @@ resource "aws_iam_role_policy_attachment" "tobeynd_ssm_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+resource "aws_iam_role_policy_attachment" "tobeynd_cw_logs_policy" {
+  role       = aws_iam_role.tobeynd_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+
 resource "aws_iam_instance_profile" "tobeynd_ec2_profile" {
   name = "tobeynd-ec2-profile"
   role = aws_iam_role.tobeynd_ec2_role.name
@@ -345,11 +356,17 @@ resource "aws_launch_template" "tobeynd_lt" {
   user_data = base64encode(<<-EOF
     #!/bin/bash
     sudo yum update -y
-    sudo yum install -y docker
+    sudo yum install -y docker amazon-cloudwatch-agent amazon-ssm-agent
+    sudo systemctl enable amazon-ssm-agent
+    sudo systemctl start amazon-ssm-agent
     sudo systemctl start docker
     sudo systemctl enable docker
     sudo docker pull tobeynd/fleet-management:latest
     sudo docker run -d --name fleet-app \
+      --log-driver=awslogs \
+      --log-opt awslogs-region=af-south-1 \
+      --log-opt awslogs-group=/tobeynd/fleet-app \
+      --log-opt awslogs-create-group=true \
       -p 3002:3002 \
       -e DB_HOST=${aws_db_instance.tobeynd_rds.address} \
       -e DB_PORT=5432 \
@@ -450,7 +467,7 @@ resource "aws_autoscaling_group" "tobeynd_asg" {
   }
 
   health_check_type         = "ELB"
-  health_check_grace_period = 300
+  health_check_grace_period = 600
 
   tag {
     key                 = "Name"
@@ -458,3 +475,152 @@ resource "aws_autoscaling_group" "tobeynd_asg" {
     propagate_at_launch = true
   }
 }
+
+# Scaling policy for the ASG based on CPU utilization
+
+# Scaling up policy
+resource "aws_autoscaling_policy" "tobeynd_scale_up" {
+  name                   = "tobeynd-scale-up"
+  autoscaling_group_name = aws_autoscaling_group.tobeynd_asg.name
+  adjustment_type        = "ChangeInCapacity"
+  scaling_adjustment     = 1
+  cooldown               = 300
+  policy_type            = "SimpleScaling"
+}
+
+# Scaling down policy
+resource "aws_autoscaling_policy" "tobeynd_scale_down" {
+  name                   = "tobeynd-scale-down"
+  autoscaling_group_name = aws_autoscaling_group.tobeynd_asg.name
+  adjustment_type        = "ChangeInCapacity"
+  scaling_adjustment     = -1
+  cooldown               = 300
+  policy_type            = "SimpleScaling"
+}
+
+# CloudWatch alarm 
+# --- CLOUDWATCH ALARM: SCALE UP AT 70% CPU ---
+resource "aws_cloudwatch_metric_alarm" "tobeynd_cpu_high" {
+  alarm_description = "Monitors CPU when scaling up for Tobeynd ASG"
+  alarm_name        = "tobeynd_cpu_high"
+
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  namespace           = "AWS/EC2"
+  metric_name         = "CPUUtilization"
+  threshold           = "70"
+  evaluation_periods  = "2"
+  period              = "120"
+  statistic           = "Average"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.tobeynd_asg.name
+  }
+
+  alarm_actions = [aws_autoscaling_policy.tobeynd_scale_up.arn]
+
+}
+
+# --- CLOUDWATCH ALARM: SCALE DOWN AT 30% CPU ---
+resource "aws_cloudwatch_metric_alarm" "tobeynd_cpu_low" {
+  alarm_description = "Monitors CPU  when scaling down for Tobeynd ASG"
+  alarm_name        = "tobeynd_cpu_low"
+
+  comparison_operator = "LessThanOrEqualToThreshold"
+  namespace           = "AWS/EC2"
+  metric_name         = "CPUUtilization"
+  threshold           = "30"
+  evaluation_periods  = "2"
+  period              = "120"
+  statistic           = "Average"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.tobeynd_asg.name
+  }
+
+  alarm_actions = [aws_autoscaling_policy.tobeynd_scale_down.arn]
+
+}
+
+# Cloudwatch logs 
+resource "aws_cloudwatch_log_group" "tobeynd_app_logs" {
+  name              = "/tobeynd/fleet-app"
+  retention_in_days = 7
+
+  tags = {
+    Name = "tobeynd_app_logs"
+  }
+}
+
+# Parameter store
+
+resource "aws_ssm_parameter" "db_host" {
+  name  = "/fleet-app/db-host"
+  type  = "String"
+  value = aws_db_instance.tobeynd_rds.address
+
+  tags = {
+    Name = "tobeynd_db_host"
+  }
+
+}
+
+resource "aws_ssm_parameter" "db_name" {
+  name  = "/fleet-app/db-name"
+  type  = "String"
+  value = var.db_name
+
+  tags = {
+    Name = "tobeynd_db_name"
+  }
+
+}
+
+
+resource "aws_ssm_parameter" "db_username" {
+  name  = "/fleet-app/db-username"
+  type  = "SecureString"
+  value = var.db_username
+
+  tags = {
+    Name = "tobeynd_db_username"
+  }
+}
+
+resource "aws_ssm_parameter" "db_password" {
+  name  = "/fleet-app/db-password"
+  type  = "SecureString"
+  value = var.db_password
+
+  tags = {
+    Name = "tobeynd_db_password"
+  }
+}
+
+
+# least privilege IAM for parameter store 
+resource "aws_iam_role_policy" "tobeynd_ssm_params_read" {
+  name = "tobeynd-ssm-params-read"
+  role = aws_iam_role.tobeynd_ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ]
+        Resource = "arn:aws:ssm:af-south-1:*:parameter/fleet-app/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+
