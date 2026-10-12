@@ -4,13 +4,13 @@ A web application for managing and tracking a fleet of vehicles. Built with Node
 
 ## Demo
 
-> 📹 ![Watch Demo Video](Diagram-and-Video-Demo/FleetManagementTrackingDemo.mp4)
+> 📹 ![Watch Demo Video](AWS-FleetManagementTracking/FleetManagementTrackingDemo.mp4)
 
 ---
 
 ## Architecture Diagram
 
-> 📐![View Architecture Diagram](Diagram-and-Video-Demo/Fleetmanagementtracking.png)
+> 📐![View Architecture Diagram](AWS-FleetManagementTracking/Fleetmanagementtracking.png)
 
 ---
 
